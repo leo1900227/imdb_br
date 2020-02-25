@@ -2,117 +2,135 @@
 # data: imdb_cn
 
 
+
 library(purrr)
 `%not_in%` <- purrr::negate(`%in%`)
 
 
 
+# 中国参与的电影 -----------------------------------------------------------------
+# 全部：
+tt_cn <- 
+  imdb_long %>% 
+  as_tibble() %>% 
+  filter(country == "China") %>% 
+  .$tt_num %>% 
+  as_vector()
+
+length(tt_cn)
+# [1] 8059
+
+
+# 跟一带一路国家合作或独作
+tt_br_cn <- 
+  imdb_br_long %>% 
+  as_tibble() %>% 
+  filter(country == "China") %>% 
+  .$tt_num %>% 
+  as_vector()
+
+
 # 筛选出中国独立完成的电影 ------------------------------------------------------------
 
-## 先转成long data，再根据tt_num来group_by，选出总数为1的
-imdb_cn_long <- 
-  imdb_cn %>% 
-  gather(-non_countries_vars,key = "country",value = "produce") %>% 
-  filter(produce != 0) %>% 
-  select(-produce) 
+# 独作电影(所有国家)
+tt_alone <- 
+  imdb_long %>% 
+  group_by(tt_num) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  as_tibble() %>% 
+  filter(n == 1) %>% 
+  .$tt_num
 
+# length(tt_alone)
+# [1] 1126884
+
+
+# 🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟
+
+# 独作电影（one belt one road）
+
+tt_br_alone <- 
+  imdb_br_long %>% 
+  group_by(tt_num) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  as_tibble() %>% 
+  filter(n == 1) %>% 
+  .$tt_num
+
+tt_cn_alone <- 
+  imdb_long %>% 
+  filter(tt_num %in% tt_alone) %>%
+  filter(country == "China") %>% 
+  as_tibble() %>% 
+  .$tt_num %>% 
+  as_vector()
+
+length(tt_cn_alone)
+# [1] 5662
 # colnames(imdb_cn_long)
 
 # >>中国与别的地区合作的电影的tt_num ---------------------------------------------------
+tt_cn_col <- 
+  tt_cn[tt_cn %not_in% tt_cn_alone] 
 
 
-cn_alone_tt_num <- 
-  imdb_cn_long %>% 
-  group_by(tt_num) %>% 
-  summarise(n=n()) %>% 
-  filter(n == 1) %>% 
-  .$tt_num %>% 
-  as.vector()
-
-length(cn_alone_tt_num)
-# [1] 7385
+length(tt_cn_col)
+# [1] 2397
 
 
+# 中国与One Belt One Road地区合作
+tt_br_cn_col <- 
+  tt_br_cn[tt_br_cn %not_in% tt_cn_alone]
 
-# >>有中国参与的电影的tt_num -------------------------------------------------------
-cn_tt_num <- 
-  imdb_cn$tt_num %>% 
-  as.vector()
-
-
-# >> 中国与别的地区合作的电影的tt_num --------------------------------------------------
-
-cn_col_tt_num <- cn_tt_num[cn_tt_num %not_in% cn_alone_tt_num]
-
-length(cn_col_tt_num)
-# [1] 3151
-
+length(tt_br_cn_col)
+# [1] 1133
 
 
 
 imdb_cn_col <- 
-  imdb_cn %>% 
-  filter(tt_num %not_in% cn_alone_tt_num)
+  imdb_long %>% 
+  filter(tt_num %in% tt_cn_col) 
 
-colnames(imdb_cn_col)
 
-attr_vals <- colnames(imdb_cn_col)[1:32]
-
-imdb_cn_col_long <- imdb_cn_col %>% 
-  gather(-attr_vals,key = "country",value = "produce") %>% 
-  filter(produce != 0) %>% 
-  select(-produce) %>% 
-  left_join(imdb_belt_road_long_box[,c(1,34)], by ="tt_num") %>%
-  rename(box = world_box_usd)
+imdb_br_cn_col <- 
+  imdb_long %>% 
+  filter(tt_num %in% tt_br_cn_col) 
 
 
 
-colnames(imdb_cn_col_long)
 
-# [1] "tt_num"       "title"        "type"        
-# [4] "running_time" "score"        "score_cnt"   
-# [7] "year"         "Action"       "Adult"       
-# [10] "Adventure"    "Animation"    "Biography"   
-# [13] "Comedy"       "Crime"        "Documentary" 
-# [16] "Drama"        "Family"       "Fantasy"     
-# [19] "Film-Noir"    "History"      "Horror"      
-# [22] "Music"        "Musical"      "Mystery"     
-# [25] "Romance"      "Sci-Fi"       "Short"       
-# [28] "Sport"        "Thriller"     "War"         
-# [31] "Western"      "TV"           "country" 
-
-
-# 中国独立完成的电影的表现 ------------------------------------------------------------
-imdb_cn_alone <- imdb_cn %>% .[,c(1:32)] %>%  # 排除国家数据
-  filter(tt_num %in% cn_alone_tt_num) %>% 
-  left_join(imdb_belt_road_long_box[,c(1,34)], by ="tt_num") %>%
-  rename(box = world_box_usd)
+# 中国独立完成的电影的表现 -----------------------------------------------------------
+imdb_cn_alone <- 
+  imdb_long %>% 
+  filter(tt_num %in% tt_cn_alone) 
 
 
 mean(imdb_cn_alone$score,na.rm = T)
-# [1] 6.383606
+# [1] 6.169282
 
 mean(imdb_cn_alone$score_cnt,na.rm = T)
-# [1] 203.5546
+# [1] 237.1085
 
-mean(imdb_cn_alone$box,na.rm = T)
-# [1] 24523787
-
-
-colnames(imdb_cn_alone_genres)
+mean(imdb_cn_alone$world_box_usd,na.rm = T)
+# [1] 320693.1
 
 
 
 # >> 独立完成的电影佳作一览 ----------------------------------------------------------
 ## 按票房
 imdb_cn_alone %>% 
-  arrange(desc(box)) %>% 
-  select(title)
+  arrange(desc(world_box_usd)) %>% 
+  select(title) %>% 
+  head()
 
 
 
 # >> 中国独立完成的电影都是哪些类型的？ ----------------------------------------------------
-
+# genre_vars <- colnames(imdb_long)[8:30]
 
 imdb_cn_alone_genres <- 
   imdb_cn_alone %>% 
@@ -121,82 +139,117 @@ imdb_cn_alone_genres <-
 
 
 
-table_cn_al <- 
+tb_cn_al <- 
   imdb_cn_alone_genres %>% 
   group_by(genre) %>% 
   summarise(n=n()) %>% 
   arrange(desc(n)) %>% 
   mutate(prop = prop.table(n))
 
-# # A tibble: 23 x 3
+tb_cn_al
+# # A tibble: 21 x 3
 # genre           n   prop
 # <chr>       <int>  <dbl>
-#   1 Drama        3140 0.286 
-# 2 Short        1370 0.125 
-# 3 Comedy        769 0.0700
-# 4 Romance       760 0.0692
-# 5 Documentary   726 0.0661
-# 6 Action        617 0.0561
-# 7 Animation     394 0.0359
-# 8 Family        388 0.0353
-# 9 Crime         374 0.0340
-# 10 War           351 0.0319
-# # … with 13 more rows
+#   1 Drama        2460 0.288 
+# 2 Short        1270 0.148 
+# 3 Documentary   632 0.0739
+# 4 Comedy        624 0.0730
+# 5 Romance       510 0.0596
+# 6 Action        472 0.0552
+# 7 Family        336 0.0393
+# 8 Animation     324 0.0379
+# 9 Crime         310 0.0362
+# 10 War           265 0.0310
+
 
 
 
 
 # 中国合作电影表现 ----------------------------------------------------------------
-
-
 mean(imdb_cn_col$score,na.rm = T)
-# [1] 6.495895
+# [1] 6.56943
 
 mean(imdb_cn_col$score_cnt,na.rm = T)
-# [1] 9817.206
+# [1] 10541.34
 
-mean(imdb_cn_col$box,na.rm = T)
-# [1] 43342734
-
-
-
+mean(imdb_cn_col$world_box_usd,na.rm = T)
+# [1] 608025.6
 
 
 # >> 中国合作完成的电影都是哪些类型的？ ----------------------------------------------------
 
-
-imdb_cn_col_genres <- imdb_cn_col %>% 
+imdb_cn_col_genres <- 
+  imdb_cn_col %>% 
   gather(genre_vars,key = "genre",value = "n") %>%  #将多列的电影类型转成一列
   filter(n != 0);imdb_cn_col_genres 
 
 
-
-
-
-table_cn_col <- imdb_cn_col_genres %>% group_by(genre) %>% 
+tb_cn_col <- 
+  imdb_cn_col_genres %>% 
+  group_by(genre) %>% 
   summarise(n=n()) %>% 
   arrange(desc(n)) %>% 
   mutate(prop = prop.table(n)) #算一下比例
 
-table_cn_col
-
+tb_cn_col
+# # A tibble: 21 x 3
 # genre           n   prop
 # <chr>       <int>  <dbl>
-#   1 Drama        1047 0.145 
-# 2 Documentary   866 0.120 
-# 3 Comedy        843 0.117 
-# 4 Short         708 0.0981
-# 5 Family        706 0.0978
-# 6 Animation     702 0.0973
-# 7 Action        464 0.0643
-# 8 Adventure     344 0.0477
-# 9 Romance       275 0.0381
-# 10 Biography     234 0.0324
-# … with 13 more rows
+#   1 Documentary  2845 0.193 
+# 2 Drama        2610 0.177 
+# 3 Short        1656 0.112 
+# 4 Adventure    1093 0.0742
+# 5 Action       1020 0.0692
+# 6 Biography     814 0.0552
+# 7 Comedy        770 0.0523
+# 8 Romance       594 0.0403
+# 9 History       518 0.0352
+# 10 Crime         498 0.0338
+
+# 🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟
+# 与一带一路国家合作
+
+imdb_br_cn_col_genres <- 
+  imdb_br_cn_col %>% 
+  gather(genre_vars,key = "genre",value = "n") %>%  #将多列的电影类型转成一列
+  filter(n != 0);imdb_cn_col_genres 
+
+
+tb_br_cn_col <- es %>% 
+  group_by(genre) %br_>% 
+  summarise(n=n()) %>% 
+  arrange(desc(n)) %>% 
+  mutate(prop = prop.table(n)) #算一下比例
+
+tb_br_cn_col
 
 
 
-# >> 小结 -------------------------------------------------------------------
+
+
+# >> 小结 -------------------------# # A tibble: 20 x 3
+# genre           n    prop
+# <chr>       <int>   <dbl>
+#   1 Drama         728 0.196  
+# 2 Documentary   583 0.157  
+# 3 Short         394 0.106  
+# 4 Action        354 0.0951 
+# 5 Adventure     281 0.0755 
+# 6 Comedy        206 0.0553 
+# 7 Romance       190 0.0510 
+# 8 Biography     159 0.0427 
+# 9 History       152 0.0408 
+# 10 Crime         117 0.0314 
+# 11 Family        105 0.0282 
+# 12 Fantasy       103 0.0277 
+# 13 Animation     102 0.0274 
+# 14 Thriller       72 0.0193 
+# 15 Mystery        45 0.0121 
+# 16 War            38 0.0102 
+# 17 Sci-Fi         33 0.00886
+# 18 Horror         32 0.00860
+# 19 Sport          25 0.00672
+# 20 Western         4 0.00107----------------------------------------
 
 
 ## 简单总结：尽管中国独立完成的电影和中国合作完成的电影在评分上差异不大，但是合作电影得到的国际关注度远超独立完成的电影
@@ -205,36 +258,68 @@ table_cn_col
 
 ## 合作电影票房表现更佳
 
+# 🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟
+# 🎃哪些国家/地区和中国合作比较多，合作的表现是什么？ --------------
+# 🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟
 
-# 哪些国家/地区和中国合作比较多，合作的表现是什么？ -----------------------------------------------
-table_cn_countries_col <- imdb_cn_col_long %>% 
+tb_cn_col <- 
+  imdb_cn_col %>% 
   group_by(country) %>% 
   summarise(
     n=n(),
     score=mean(score,na.rm = T),
     score_cnt=mean(score_cnt,na.rm = T),
-    box=mean(box,na.rm = T)
+    box=mean(world_box_usd,na.rm = T)
     ) %>% 
   arrange(desc(n)) %>% 
-  mutate(belt_road= if_else(country %in% br_countries,"yes","no" )) %>% 
+  mutate(belt_road= if_else(country %in% br_vars,"yes","no" )) %>% 
   filter(country != "China")
 
-table_cn_countries_col
+
+
+tb_br_cn_col <- 
+  tb_cn_col %>% 
+  filter(belt_road == "yes") %>% 
+  left_join(.,country_info,by = "country")
+
+# tb_br_cn_col %>% fwrite("../output/tb_br_cn_col.csv")
+
+
+# >> 区域比较 -----------------------------------------------------------------
+tb_br_cn_area_col <- 
+  tb_br_cn_col %>% 
+  group_by(area) %>% 
+  summarise(
+    n=sum(n),
+    score=mean(score,na.rm = T),
+    score_cnt=mean(score_cnt,na.rm = T),
+    box=mean(box,na.rm = T)
+  ) %>% 
+  arrange(desc(n))
+  
+tb_br_cn_area_col
+
+# area                    n score score_cnt     box
+# <chr>               <int> <dbl>     <dbl>   <dbl>
+#   1 Asia & Pacific        390  7.22      788.  36673.
+# 2 Europe                289  7.33     1883. 836548.
+# 3 Africa                118  7.43     3542.  55468.
+# 4 South/Latin America    69  6.72      135.    NaN 
+# 5 Middle east            53  7.09    15534.  61970.
+# 6 Arab States            13  6.24      465.    NaN 
+
 
 # >> 中国与“一带一路”沿线国家与非“一带一路”沿线国家合作数量 ----------------------------------------
 
 
-##  
-table_cn_countries_col %>% 
+tb_cn_col %>% 
   group_by(belt_road) %>% 
   summarise(n = n()) 
 
-# A tibble: 2 x 2
 # belt_road     n
-# <fct>     <int>
-# 1 no          116
-# 2 yes          46
-
+# <chr>     <int>
+#   1 no           59
+# 2 yes          99
 
 
 # >> 和“一带一路”国家合作还是非“一带一路”国家合作更好？ ------------------------------------------
@@ -340,4 +425,25 @@ table_cn_countries_yr_col_Nbr <-
   filter(belt_road == "no") %>% 
   arrange(desc(year))
   
+# 🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟
+# 代表作分析 -------------------------------------------------------------------
+# 🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟🐟
 
+
+# >> 独作电影 -----------------------------------------------------------------
+imdb_long %>% 
+  filter(tt_num %in% tt_cn_alone) %>% 
+  arrange(-world_box_usd)
+
+
+# >> 合作电影 -----------------------------------------------------------------
+top_col <- c("Italy","Singapore","Thailand","Russia","Malaysia","Austria","Philippines","Indonesia","Poland","South Africa")
+
+mv_col_top_cn <- 
+  imdb_long %>% 
+    filter(tt_num %in% tt_cn_col &
+             country %in% top_col) %>% 
+    arrange(-world_box_usd) 
+
+
+mv_col_top_cn %>% fwrite("../output/mv_col_top_cn2.csv")
